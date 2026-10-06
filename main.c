@@ -16,6 +16,12 @@ typedef enum {
 
 typedef enum { PREPARE_SUCCESS, PREPARE_UNRECOGNIZED_STATEMENT } PrepareResult;
 
+// statement
+typedef enum { STATEMENT_INSERT, STATEMENT_SELECT } StatementType;
+typedef struct {
+  StatementType type;
+} Statement;
+
 // create input buffer: create and initialize InputBuffer struct
 InputBuffer *create_input_buffer() {
   InputBuffer *input_buffer = (InputBuffer *)malloc(sizeof(InputBuffer));

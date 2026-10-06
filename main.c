@@ -20,6 +20,12 @@ InputBuffer *create_input_buffer() {
 
   return input_buffer;
 }
+// destroy input buffer: free up memory
+void destroy_input_buffer(InputBuffer *input_buffer) {
+  free(input_buffer->buffer);
+  free(input_buffer);
+}
+
 // print prompt
 void print_prompt() { printf("db > "); }
 
@@ -34,6 +40,7 @@ void read_input(InputBuffer *input_buffer) {
   }
   // ignore trailing newline
   input_buffer->input_length = bytes_read - 1;
+  input_buffer->buffer[bytes_read - 1] = 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -44,7 +51,7 @@ int main(int argc, char *argv[]) {
     read_input(create_input_buffer());
 
     if (strcmp(input_buffer->buffer, ".exit") == 0) {
-      close_input_buffer(input_buffer);
+      destroy_input_buffer(input_buffer);
       exit(EXIT_SUCCESS);
     } else {
       printf("Unrecognized command '%s' .\n", input_buffer->buffer);

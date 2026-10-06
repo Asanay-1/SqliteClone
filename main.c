@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+ssize_t getline(char **lineptr, size_t *n, FILE *stream);
+
 typedef struct {
   char *buffer;
   size_t buffer_length;
@@ -21,12 +23,25 @@ InputBuffer *create_input_buffer() {
 // print prompt
 void print_prompt() { printf("db > "); }
 
+// read input
+void read_input(InputBuffer *input_buffer) {
+  ssize_t bytes_read =
+      getline(&(input_buffer->buffer), &(input_buffer->buffer_length), stdin);
+
+  if (bytes_read <= 0) {
+    printf("error reading input\n");
+    exit(EXIT_FAILURE);
+  }
+  // ignore trailing newline
+  input_buffer->input_length = bytes_read - 1;
+}
+
 int main(int argc, char *argv[]) {
   InputBuffer *input_buffer = create_input_buffer();
 
   while (true) {
     print_prompt();
-    read_input(create_input_buffer);
+    read_input(create_input_buffer());
 
     if (strcmp(input_buffer->buffer, ".exit") == 0) {
       close_input_buffer(input_buffer);

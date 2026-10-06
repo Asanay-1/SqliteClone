@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
 
   while (true) {
     print_prompt();
-    read_input(create_input_buffer());
+    read_input(input_buffer);
 
     if (strcmp(input_buffer->buffer, ".exit") == 0) {
       destroy_input_buffer(input_buffer);

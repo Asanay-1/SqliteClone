@@ -74,7 +74,17 @@ PrepareResult prepare_statement(InputBuffer *input_buffer,
   }
   return PREPARE_UNRECOGNIZED_STATEMENT;
 }
-
+// execute statement
+void execute_statement(Statement *statement) {
+  switch (statement->type) {
+  case (STATEMENT_INSERT):
+    printf("insert received\n");
+    break;
+  case (STATEMENT_SELECT):
+    printf("select received\n");
+    break;
+  }
+}
 //---------------------
 int main(int argc, char *argv[]) {
   InputBuffer *input_buffer = create_input_buffer();
@@ -100,7 +110,8 @@ int main(int argc, char *argv[]) {
       printf("Unrecognized keyword at start of '%s'.\n", input_buffer->buffer);
       continue;
     }
+
+    execute_statement(&statement);
+    printf("Executed.\n");
   }
-  execute_statement(&statement);
-  printf("Executed.\n");
 }

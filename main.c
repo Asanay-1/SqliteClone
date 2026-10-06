@@ -18,6 +18,8 @@ InputBuffer *create_input_buffer() {
 
   return input_buffer;
 }
+// print prompt
+void print_prompt() { printf("db > "); }
 
 int main(int argc, char *argv[]) {
   InputBuffer *input_buffer = create_input_buffer();

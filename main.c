@@ -49,7 +49,7 @@ const uint32_t ROW_SIZE = ID_SIZE + USERNAME_SIZE + EMAIL_SIZE;
 const uint32_t PAGE_SIZE = 4096;
 #define TABLE_MAX_PAGES 100
 const uint32_t ROWS_PER_PAGE = PAGE_SIZE / ROW_SIZE;
-const uint32_t TABLE_MAX_ROW = ROWS_PER_PAGE * TABLE_MAX_PAGES;
+const uint32_t TABLE_MAX_ROWS = ROWS_PER_PAGE * TABLE_MAX_PAGES;
 
 typedef struct {
   uint32_t num_rows;
@@ -130,14 +130,33 @@ PrepareResult prepare_statement(InputBuffer *input_buffer,
   return PREPARE_UNRECOGNIZED_STATEMENT;
 }
 // execute statement
-void execute_statement(Statement *statement) {
+ExecuteResult execute_insert(Statement *statement, Table *table) {
+
+  if (table->num_rows >= TABLE_MAX_ROWS)
+    return EXECUTE_TABLE_FULL;
+
+  Row *row_to_insert = &(statement->row_to_insert);
+
+  serialize_row(row_to_insert, row_slot(table, table->num_rows));
+  table->num_rows += 1;
+
+  return EXECUTE_SUCCESS;
+}
+
+ExecuteResult execute_select(Statement *statement, Table *table) {
+  Row row;
+  for (uint32_t i = 0, i < table->num_rows; i++) {
+    deserialize_row(row_slot(table, i), &row);
+    print_row(&row);
+  }
+  return EXECUTE_SUCCESS;
+}
+ExecuteResult execute_statement(Statement *statement, Table *table) {
   switch (statement->type) {
   case (STATEMENT_INSERT):
-    printf("insert received\n");
-    break;
+    return (execute_insert(statement, table));
   case (STATEMENT_SELECT):
-    printf("select received\n");
-    break;
+    return (execute_select(statement, table));
   }
 }
 // row slot

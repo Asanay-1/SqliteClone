@@ -24,7 +24,11 @@ typedef enum {
   META_COMMAND_UNRECOGNIZED_COMMAND
 } MetaCommandResult;
 
-typedef enum { PREPARE_SUCCESS, PREPARE_UNRECOGNIZED_STATEMENT } PrepareResult;
+typedef enum {
+  PREPARE_SUCCESS,
+  PREPARE_SYNTAX_ERROR,
+  PREPARE_UNRECOGNIZED_STATEMENT
+} PrepareResult;
 
 // statement
 typedef enum { STATEMENT_INSERT, STATEMENT_SELECT } StatementType;
@@ -56,10 +60,23 @@ typedef struct {
   void *pages[TABLE_MAX_PAGES];
 } Table;
 
-// function prototypes
-void *row_slot(Table *table, uint32_t row_num);
-
-//---------------------------------
+//--------------------------------- functions
+// row slot
+void *row_slot(Table *table, uint32_t row_num) {
+  uint32_t page_num = row_num / ROWS_PER_PAGE;
+  void *page = table->pages[page_num];
+  if (page == NULL) {
+    // allocate memory only when we try to access page
+    page = table->pages[page_num] = malloc(PAGE_SIZE);
+  }
+  uint32_t row_offset = row_num % ROWS_PER_PAGE;
+  uint32_t byte_offset = row_offset * ROW_SIZE;
+  return page + byte_offset;
+}
+// print_row
+void print_row(Row *row) {
+  printf("(%d, %s, %s)\n", row->id, row->username, row->email);
+}
 // serialize_row: arrange the source into a sequence of memory
 void serialize_row(Row *source, void *dest) {
   memcpy(dest + ID_OFFSET, &(source->id), ID_SIZE);
@@ -179,24 +196,10 @@ void free_table(Table *table) {
   }
   free(table);
 }
-//-----------------
-// row slot
-void *row_slot(Table *table, uint32_t row_num) {
-  uint32_t page_num = row_num / ROWS_PER_PAGE;
-  void *page = table->pages[page_num];
-  if (page == NULL) {
-    // allocate memory only when we try to access page
-    page = table->pages[page_num] = malloc(PAGE_SIZE);
-  }
-  uint32_t row_offset = row_num % ROWS_PER_PAGE;
-  uint32_t byte_offset = row_offset * ROW_SIZE;
-  return page + byte_offset;
-}
-
 //---------------------
 int main(int argc, char *argv[]) {
   InputBuffer *input_buffer = create_input_buffer();
-
+  Table *table = create_table();
   while (true) {
     print_prompt();
     read_input(input_buffer);
@@ -214,12 +217,21 @@ int main(int argc, char *argv[]) {
     switch (prepare_statement(input_buffer, &statement)) {
     case (PREPARE_SUCCESS):
       break;
+    case (PREPARE_SYNTAX_ERROR):
+      printf("syntax error. could not parse statement\n");
     case (PREPARE_UNRECOGNIZED_STATEMENT):
       printf("Unrecognized keyword at start of '%s'.\n", input_buffer->buffer);
       continue;
     }
 
     execute_statement(&statement);
-    printf("Executed.\n");
+    switch (execute_statement(&(statement), table)) {
+    case (EXIT_SUCCESS):
+      printf("Executed.\n");
+      break;
+    case (EXECUTE_TABLE_FULL):
+      printf("Table full.\n");
+      break;
+    }
   }
 }

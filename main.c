@@ -53,7 +53,7 @@ const uint32_t TABLE_MAX_ROW = ROWS_PER_PAGE * TABLE_MAX_PAGES;
 
 typedef struct {
   uint32_t num_rows;
-  void *page[TABLE_MAX_PAGES];
+  void *pages[TABLE_MAX_PAGES];
 } Table;
 
 //---------------------------------
@@ -140,6 +140,19 @@ void execute_statement(Statement *statement) {
     break;
   }
 }
+// row slot
+void *row_slot(Table *table, uint32_t row_num) {
+  uint32_t page_num = row_num / ROWS_PER_PAGE;
+  void *page = table->pages[page_num];
+  if (page == NULL) {
+    // allocate memory only when we try to access page
+    page = table->pages[page_num] = malloc(PAGE_SIZE);
+  }
+  uint32_t row_offset = row_num % ROWS_PER_PAGE;
+  uint32_t byte_offset = row_offset * ROW_SIZE;
+  return page + byte_offset;
+}
+
 //---------------------
 int main(int argc, char *argv[]) {
   InputBuffer *input_buffer = create_input_buffer();

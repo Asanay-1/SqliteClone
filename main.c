@@ -56,6 +56,9 @@ typedef struct {
   void *pages[TABLE_MAX_PAGES];
 } Table;
 
+// function prototypes
+void *row_slot(Table *table, uint32_t row_num);
+
 //---------------------------------
 // serialize_row: arrange the source into a sequence of memory
 void serialize_row(Row *source, void *dest) {
@@ -63,7 +66,7 @@ void serialize_row(Row *source, void *dest) {
   memcpy(dest + USERNAME_OFFSET, &(source->username), USERNAME_SIZE);
   memcpy(dest + EMAIL_OFFSET, &(source->email), EMAIL_SIZE);
 }
-// deserialize_row: organize the row memeory into a proper struct
+// deserialize_row: organize the row memory into a proper struct
 void deserialize_row(void *source, Row *dest) {
   memcpy(&(dest->id), source + ID_OFFSET, ID_SIZE);
   memcpy(&(dest->username), source + USERNAME_OFFSET, USERNAME_SIZE);
@@ -129,7 +132,7 @@ PrepareResult prepare_statement(InputBuffer *input_buffer,
   }
   return PREPARE_UNRECOGNIZED_STATEMENT;
 }
-// execute statement
+// execute statement-----
 ExecuteResult execute_insert(Statement *statement, Table *table) {
 
   if (table->num_rows >= TABLE_MAX_ROWS)
@@ -145,7 +148,7 @@ ExecuteResult execute_insert(Statement *statement, Table *table) {
 
 ExecuteResult execute_select(Statement *statement, Table *table) {
   Row row;
-  for (uint32_t i = 0, i < table->num_rows; i++) {
+  for (uint32_t i = 0; i < table->num_rows; i++) {
     deserialize_row(row_slot(table, i), &row);
     print_row(&row);
   }
@@ -159,6 +162,24 @@ ExecuteResult execute_statement(Statement *statement, Table *table) {
     return (execute_select(statement, table));
   }
 }
+//---------------
+// create/free table-----
+Table *create_table() {
+  // allocate memory
+  Table *table = (Table *)malloc(sizeof(Table));
+  table->num_rows = 0;
+  for (uint32_t i = 0; i < TABLE_MAX_PAGES; i++) {
+    table->pages[i] = NULL;
+  }
+  return table;
+}
+void free_table(Table *table) {
+  for (int i = 0; table->pages[i]; i++) {
+    free(table->pages[i]);
+  }
+  free(table);
+}
+//-----------------
 // row slot
 void *row_slot(Table *table, uint32_t row_num) {
   uint32_t page_num = row_num / ROWS_PER_PAGE;

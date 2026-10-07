@@ -24,6 +24,8 @@ typedef enum {
   META_COMMAND_UNRECOGNIZED_COMMAND
 } MetaCommandResult;
 
+typedef enum { EXECUTE_SUCCESS, EXECUTE_TABLE_FULL } ExecuteResult;
+
 typedef enum {
   PREPARE_SUCCESS,
   PREPARE_SYNTAX_ERROR,
@@ -77,6 +79,22 @@ void *row_slot(Table *table, uint32_t row_num) {
 void print_row(Row *row) {
   printf("(%d, %s, %s)\n", row->id, row->username, row->email);
 }
+// create/free table-----
+Table *create_table() {
+  // allocate memory
+  Table *table = (Table *)malloc(sizeof(Table));
+  table->num_rows = 0;
+  for (uint32_t i = 0; i < TABLE_MAX_PAGES; i++) {
+    table->pages[i] = NULL;
+  }
+  return table;
+}
+void free_table(Table *table) {
+  for (int i = 0; table->pages[i]; i++) {
+    free(table->pages[i]);
+  }
+  free(table);
+}
 // serialize_row: arrange the source into a sequence of memory
 void serialize_row(Row *source, void *dest) {
   memcpy(dest + ID_OFFSET, &(source->id), ID_SIZE);
@@ -122,8 +140,10 @@ void read_input(InputBuffer *input_buffer) {
   input_buffer->buffer[bytes_read - 1] = 0;
 }
 // read meta command
-MetaCommandResult do_meta_command(InputBuffer *input_buffer) {
+MetaCommandResult do_meta_command(InputBuffer *input_buffer, Table *table) {
   if (strcmp(input_buffer->buffer, ".exit") == 0) {
+    destroy_input_buffer(input_buffer);
+    free_table(table);
     exit(EXIT_SUCCESS);
   } else {
     return META_COMMAND_UNRECOGNIZED_COMMAND;
@@ -179,33 +199,16 @@ ExecuteResult execute_statement(Statement *statement, Table *table) {
     return (execute_select(statement, table));
   }
 }
-//---------------
-// create/free table-----
-Table *create_table() {
-  // allocate memory
-  Table *table = (Table *)malloc(sizeof(Table));
-  table->num_rows = 0;
-  for (uint32_t i = 0; i < TABLE_MAX_PAGES; i++) {
-    table->pages[i] = NULL;
-  }
-  return table;
-}
-void free_table(Table *table) {
-  for (int i = 0; table->pages[i]; i++) {
-    free(table->pages[i]);
-  }
-  free(table);
-}
 //---------------------
 int main(int argc, char *argv[]) {
   InputBuffer *input_buffer = create_input_buffer();
   Table *table = create_table();
+
   while (true) {
     print_prompt();
     read_input(input_buffer);
-
     if (input_buffer->buffer[0] == '.') {
-      switch (do_meta_command(input_buffer)) {
+      switch (do_meta_command(input_buffer, table)) {
       case (META_COMMAND_SUCCESS):
         continue;
       case (META_COMMAND_UNRECOGNIZED_COMMAND):
@@ -213,6 +216,7 @@ int main(int argc, char *argv[]) {
         continue;
       }
     }
+
     Statement statement;
     switch (prepare_statement(input_buffer, &statement)) {
     case (PREPARE_SUCCESS):
@@ -224,7 +228,6 @@ int main(int argc, char *argv[]) {
       continue;
     }
 
-    execute_statement(&statement);
     switch (execute_statement(&(statement), table)) {
     case (EXIT_SUCCESS):
       printf("Executed.\n");

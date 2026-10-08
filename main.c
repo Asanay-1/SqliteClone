@@ -1,4 +1,3 @@
-#include <cstdint>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
@@ -140,6 +139,25 @@ Pager *pager_open(const char *filename) {
     pager->pages[i] = NULL;
   }
   return pager;
+} // pager flush
+void pager_flush(Pager *pager, uint32_t page_num, uint32_t size) {
+  if (pager->pages[page_num] == NULL) {
+    printf("error: Tried to flush null page\n");
+    exit(EXIT_FAILURE);
+  }
+  off_t offset = lseek(pager->file_desriptor, page_num * PAGE_SIZE, SEEK_SET);
+
+  if (offset == -1) {
+    printf("error seeking\n", errno);
+    exit(EXIT_FAILURE);
+  }
+  ssize_t bytes_written =
+      write(pager->file_desriptor, pager->pages[page_num], size);
+
+  if (bytes_written == -1) {
+    printf("fail to write: %d\n", errno);
+    exit(EXIT_FAILURE);
+  }
 }
 // open_db/free table-----
 Table *open_db(const char *filename) {
@@ -152,6 +170,7 @@ Table *open_db(const char *filename) {
 
   return table;
 }
+// db_close
 void close_db(Table *table) {
   Pager *pager = table->pager;
   uint32_t num_full_pages = table->num_rows / ROWS_PER_PAGE;
@@ -189,6 +208,7 @@ void close_db(Table *table) {
   free(pager);
   free(table);
 }
+
 // prepare_insert
 PrepareResult prepare_insert(InputBuffer *input_buffer, Statement *statement) {
   statement->type = STATEMENT_INSERT;

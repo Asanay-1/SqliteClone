@@ -240,6 +240,9 @@ int main(int argc, char *argv[]) {
     switch (prepare_statement(input_buffer, &statement)) {
     case (PREPARE_SUCCESS):
       break;
+    case (PREPARE_STRING_TOO_LONG):
+      printf("String too long\n");
+      continue;
     case (PREPARE_SYNTAX_ERROR):
       printf("syntax error. could not parse statement\n");
     case (PREPARE_UNRECOGNIZED_STATEMENT):

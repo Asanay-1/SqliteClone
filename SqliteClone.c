@@ -119,10 +119,8 @@ void print_row(Row *row) {
 // pager_open
 Pager *pager_open(const char *filename) {
   int fd = open(filename,
-                O_RDWR          // read and write
-                    | O_CREAT   // create if doesn't exit
-                    | S_IWUSR   // grant write
-                    | S_IRUSR); // grant read
+                O_RDWR | O_CREAT,   // read/create
+                S_IRUSR | S_IWUSR); // grant read/write to user
 
   if (fd == -1) { // cant open file
     printf("unable to open file\n");

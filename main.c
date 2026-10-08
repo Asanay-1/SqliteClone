@@ -335,8 +335,15 @@ ExecuteResult execute_statement(Statement *statement, Table *table) {
 }
 //---------------------
 int main(int argc, char *argv[]) {
+  if (argc < 2) {
+    printf("need file name\n");
+    exit(EXIT_FAILURE);
+  }
+
+  char *filename = argv[1];
+  Table *table = open_db(filename);
+
   InputBuffer *input_buffer = create_input_buffer();
-  Table *table = create_table();
 
   while (true) {
     print_prompt();

@@ -118,18 +118,23 @@ void print_row(Row *row) {
 }
 // pager_open
 Pager *pager_open(const char *filename) {
-  int fd = open(filename, O_RDWR | O_CREAT | S_IWUSR | S_IRUSR);
+  int fd = open(filename,
+                O_RDWR          // read and write
+                    | O_CREAT   // create if doesn't exit
+                    | S_IWUSR   // grant write
+                    | S_IRUSR); // grant read
 
-  if (fd == -1) {
+  if (fd == -1) { // cant open file
     printf("unable to open file\n");
     exit(EXIT_FAILURE);
   }
   off_t file_length = lseek(fd, 0, SEEK_END);
 
   Pager *pager = malloc(sizeof(Pager));
+  // initialize pager
   pager->file_desriptor = fd;
   pager->file_length = file_length;
-
+  // set all pages to NULL
   for (uint32_t i = 0; i < TABLE_MAX_PAGES; i++) {
     pager->pages[i] = NULL;
   }
@@ -138,8 +143,8 @@ Pager *pager_open(const char *filename) {
 // open_db/free table-----
 Table *open_db(const char *filename) {
   Pager *pager = pager_open(filename);
-  uint32_t num_rows = pager->file_length / ROW_SIZE;
-  // allocate memory
+  uint32_t num_rows = pager->file_length / ROW_SIZE; // total rows
+  // allocate memory and initialize
   Table *table = (Table *)malloc(sizeof(Table));
   table->pager = pager;
   table->num_rows = num_rows;

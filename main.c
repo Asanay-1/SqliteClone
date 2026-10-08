@@ -1,8 +1,10 @@
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define COLUMN_USERNAME_SIZE 32
 #define COLUMN_EMAIL_SIZE 255
@@ -60,14 +62,14 @@ const uint32_t ROWS_PER_PAGE = PAGE_SIZE / ROW_SIZE;
 const uint32_t TABLE_MAX_ROWS = ROWS_PER_PAGE * TABLE_MAX_PAGES;
 // pager
 typedef struct {
-  int file_desriptorl;
+  int file_desriptor;
   uint32_t file_length;
   void *pages[TABLE_MAX_PAGES];
 } Pager;
 // table
 typedef struct {
   uint32_t num_rows;
-  Pager *pages;
+  Pager *pager;
 } Table;
 
 //--------------------------------- functions
@@ -87,14 +89,34 @@ void *row_slot(Table *table, uint32_t row_num) {
 void print_row(Row *row) {
   printf("(%d, %s, %s)\n", row->id, row->username, row->email);
 }
-// create/free table-----
-Table *create_table() {
+// pager_open
+Pager *pager_open(const char *filename) {
+  int fd = open(filename, O_RDWR | O_CREAT | S_IWUSR | S_IRUSR);
+
+  if (fd == -1) {
+    printf("unable to open file\n");
+    exit(EXIT_FAILURE);
+  }
+  off_t file_length = lseek(fd, 0, SEEK_END);
+
+  Pager *pager = malloc(sizeof(Pager));
+  pager->file_desriptor = fd;
+  pager->file_length = file_length;
+
+  for (uint32_t i = 0; i < TABLE_MAX_PAGES; i++) {
+    pager->pages[i] = NULL;
+  }
+  return pager;
+}
+// open_db/free table-----
+Table *open_db(const char *filename) {
+  Pager *pager = pager_open(filename);
+  uint32_t num_rows = pager->file_length / ROW_SIZE;
   // allocate memory
   Table *table = (Table *)malloc(sizeof(Table));
-  table->num_rows = 0;
-  for (uint32_t i = 0; i < TABLE_MAX_PAGES; i++) {
-    table->pages[i] = NULL;
-  }
+  table->pager = pager;
+  table->num_rows = num_rows;
+
   return table;
 }
 void free_table(Table *table) {

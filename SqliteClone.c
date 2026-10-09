@@ -238,8 +238,8 @@ PrepareResult prepare_insert(InputBuffer *input_buffer, Statement *statement) {
 // serialize_row: arrange the source into a sequence of memory
 void serialize_row(Row *source, void *dest) {
   memcpy(dest + ID_OFFSET, &(source->id), ID_SIZE);
-  memcpy(dest + USERNAME_OFFSET, &(source->username), USERNAME_SIZE);
-  memcpy(dest + EMAIL_OFFSET, &(source->email), EMAIL_SIZE);
+  strncpy(dest + USERNAME_OFFSET, source->username, USERNAME_SIZE);
+  strncpy(dest + EMAIL_OFFSET, source->email, EMAIL_SIZE);
 }
 // deserialize_row: organize the row memory into a proper struct
 void deserialize_row(void *source, Row *dest) {

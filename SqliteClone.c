@@ -72,7 +72,12 @@ typedef struct {
   uint32_t num_rows;
   Pager *pager;
 } Table;
-
+// cursor struct
+typedef struct {
+  Table *table;
+  uint32_t row_num;
+  bool end_of_table;
+} Cursor;
 //--------------------------------- functions
 // get_page
 void *get_page(Pager *pager, uint32_t page_num) {
@@ -342,10 +347,9 @@ int main(int argc, char *argv[]) {
   char *p = strrchr(argv[1], '.');
 
   if (p == NULL || strcmp(p, ".db") != 0) {
-   printf("unmatch file extension\n");
-   exit(EXIT_FAILURE);
+    printf("unmatch file extension\n");
+    exit(EXIT_FAILURE);
   }
-
 
   char *filename = argv[1];
   Table *table = open_db(filename);

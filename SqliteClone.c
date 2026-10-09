@@ -223,11 +223,16 @@ void pager_flush(Pager *pager, uint32_t page_num) {
 // open_db/free table-----
 Table *open_db(const char *filename) {
   Pager *pager = pager_open(filename);
-  uint32_t num_rows = pager->file_length / ROW_SIZE; // total rows
   // allocate memory and initialize
   Table *table = (Table *)malloc(sizeof(Table));
   table->pager = pager;
-  table->num_rows = num_rows;
+  table->root_page_num = 0;
+
+  if (pager->num_pages ==
+      0) { // if it's a new file, initialize page 0 as leaf node
+    void *root_node = get_page(pager, 0);
+    initialize_leaf_node(root_node);
+  }
 
   return table;
 }

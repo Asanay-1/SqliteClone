@@ -338,6 +338,16 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
+  // check for valid file extension
+  char *p = argv[1];
+  while (*p != '.' && *p != '\0')
+    p++;
+  if (strcmp(p, ".db") != 0) {
+    printf("unmatch file extension\n");
+    exit(EXIT_FAILURE);
+  }
+
+
   char *filename = argv[1];
   Table *table = open_db(filename);
 

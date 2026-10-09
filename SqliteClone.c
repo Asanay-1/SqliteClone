@@ -355,15 +355,27 @@ void read_input(InputBuffer *input_buffer) {
   input_buffer->input_length = bytes_read - 1;
   input_buffer->buffer[bytes_read - 1] = 0;
 }
+// print leaf node
+void print_leaf_node(void *node) {
+  uint32_t num_cells = *leaf_node_num_cells(node);
+  printf("leaf (size %d)\n", num_cells);
+  for (uint32_t i = 0; i < num_cells; i++) {
+    uint32_t key = *leaf_node_key(node, i);
+    printf(" - %d : %d\n", i, key);
+  }
+}
 // read meta command
 MetaCommandResult do_meta_command(InputBuffer *input_buffer, Table *table) {
   if (strcmp(input_buffer->buffer, ".exit") == 0) {
     destroy_input_buffer(input_buffer);
     close_db(table);
     exit(EXIT_SUCCESS);
-  } else {
-    return META_COMMAND_UNRECOGNIZED_COMMAND;
+  } else if (strcmp(input_buffer->buffer, ".btree") == 0) {
+    printf("Tree:\n");
+    print_leaf_node(get_page(table->pager, 0));
+    return META_COMMAND_SUCCESS;
   }
+  return META_COMMAND_UNRECOGNIZED_COMMAND;
 }
 // table start
 Cursor *table_start(Table *table) {

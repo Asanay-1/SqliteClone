@@ -339,12 +339,11 @@ int main(int argc, char *argv[]) {
   }
 
   // check for valid file extension
-  char *p = argv[1];
-  while (*p != '.' && *p != '\0')
-    p++;
-  if (strcmp(p, ".db") != 0) {
-    printf("unmatch file extension\n");
-    exit(EXIT_FAILURE);
+  char *p = strrchr(argv[1], '.');
+
+  if (p == NULL || strcmp(p, ".db") != 0) {
+   printf("unmatch file extension\n");
+   exit(EXIT_FAILURE);
   }
 
 

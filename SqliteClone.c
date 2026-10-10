@@ -109,6 +109,9 @@ const uint32_t LEAF_NODE_CELL_SIZE = LEAF_NODE_KEY_SIZE + LEAF_NODE_VALUE_SIZE;
 const uint32_t LEAF_NODE_SPACE_FOR_CELLS = PAGE_SIZE - LEAF_NODE_HEADER_SIZE;
 const uint32_t LEAF_NODE_MAX_CELLS =
     LEAF_NODE_SPACE_FOR_CELLS / LEAF_NODE_CELL_SIZE;
+// fubction prototype
+void serialize_row(Row *source, void *dest);
+
 //----------- functions -------------
 // get_node_type
 NodeType get_node_type(void *node) {
@@ -170,6 +173,7 @@ void *get_page(Pager *pager, uint32_t page_num) {
   }
   return pager->pages[page_num];
 }
+//
 // leaf node split and insert
 void leaf_node_split_and_insert(Cursor *cursor, uint32_t key, Row *value) {
   // create new node and move half cell over
@@ -180,6 +184,39 @@ void leaf_node_split_and_insert(Cursor *cursor, uint32_t key, Row *value) {
   uint32_t new_page_num = get_unused_page_num(cursor->table->pager);
   void *new_node = get_page(cursor->table->pager, new_page_num);
   initialize_leaf_node(new_node);
+
+  // all existing key plus new key should be divided evenly between old (left)
+  // and new (right) ndoes starting from the right, move each key to correct -
+  //- position
+
+  for (uint32_t i = LEAF_NODE_MAX_CELLS; i >= 0; i--) {
+    void *destination_node;
+    if (i >= LEAF_NODE_LEFT_SPLIT_COUNT) {
+      destination_node = new_node;
+    } else {
+      destination_node = old_node;
+    }
+    uint32_t index_within_node = i % LEAF_NODE_LEFT_SPLIT_COUNT;
+    void *desination = leaf_node_cell(destination_node, index_within_node);
+
+    if (i == cursor->cell_num) {
+      serialize_row(value, desination);
+    } else if (i > cursor->cell_num) {
+      memcpy(desination, leaf_node_cell(old_node, i - 1), LEAF_NODE_CELL_SIZE);
+    } else {
+      memcpy(desination, leaf_node_cell(old_node, i), LEAF_NODE_CELL_SIZE);
+    }
+  }
+  // update cell count on both leaf node
+  *(leaf_node_num_cells(old_node)) = LEAF_NODE_LEFT_SPLIT_COUNT;
+  *(leaf_node_num_cells(new_node)) = LEAF_NODE_RIGHT_SPLIT_COUNT;
+
+  if (is_node_root(old_node)) {
+    return create_new_root(cursor->table, new_page_num);
+  } else {
+    printf("need to implement updating parent after split \n");
+    exit(EXIT_FAILURE);
+  }
 }
 // cursor value
 void *cursor_value(Cursor *cursor) {

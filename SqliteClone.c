@@ -121,6 +121,11 @@ const uint32_t INTERNAL_NODE_RIGHT_CHILD_OFFSET =
 const uint32_t INTERNAL_NODE_HEADER_SIZE = COMMON_NODE_HEADER_SIZE +
                                            INTERNAL_NODE_NUM_KEYS_SIZE +
                                            INTERANL_NODE_RIGHT_CHILD_SIZE;
+// internal node body layout
+const uint32_t INTERNAL_NODE_KEY_SIZE = sizeof(uint32_t);
+const uint32_t INTERNAL_NODE_CHILD_SIZE = sizeof(uint32_t);
+const uint32_t INTERNAL_NODE_CELL_SIZE =
+    INTERNAL_NODE_CHILD_SIZE + INTERNAL_NODE_KEY_SIZE;
 // function prototype
 void serialize_row(Row *source, void *dest);
 void *get_page(Pager *pager, uint32_t page_num);

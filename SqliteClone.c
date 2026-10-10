@@ -175,11 +175,20 @@ uint32_t *internal_node_child(void *node, uint32_t child_num) {
     return internal_node_cell(node, child_num);
   }
 }
+// get node max key
+uint32_t get_node_max_key(void *node) {
+  switch (get_node_type(node)) {
+  case NODE_INTERNAL:
+    return *internal_node_key(node, *internal_node_num_keys(node) - 1);
+  case NODE_LEAF:
+    return *leaf_node_key(node, *leaf_node_num_cells(node));
+  }
+}
 void initialize_leaf_node(void *node) {
   set_node_type(node, NODE_LEAF);
   *leaf_node_num_cells(node) = 0;
 }
-// create new ro0t
+// create new root
 void create_new_root(Table *table, uint32_t right_child_page_num) {
   // handle split the root
   // old root copied to new page, become left child

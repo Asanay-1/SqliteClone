@@ -109,9 +109,13 @@ const uint32_t LEAF_NODE_CELL_SIZE = LEAF_NODE_KEY_SIZE + LEAF_NODE_VALUE_SIZE;
 const uint32_t LEAF_NODE_SPACE_FOR_CELLS = PAGE_SIZE - LEAF_NODE_HEADER_SIZE;
 const uint32_t LEAF_NODE_MAX_CELLS =
     LEAF_NODE_SPACE_FOR_CELLS / LEAF_NODE_CELL_SIZE;
-// fubction prototype
+const uint32_t LEAF_NODE_RIGHT_SPLIT_COUNT = (LEAF_NODE_MAX_CELLS + 1) / 2;
+const uint32_t LEAF_NODE_LEFT_SPLIT_COUNT =
+    (LEAF_NODE_MAX_CELLS + 1) - LEAF_NODE_RIGHT_SPLIT_COUNT;
+// function prototype
 void serialize_row(Row *source, void *dest);
-
+void *get_page(Pager *pager, uint32_t page_num);
+uint32_t get_unused_page_num(Pager *pager);
 //----------- functions -------------
 // get_node_type
 NodeType get_node_type(void *node) {
@@ -139,6 +143,32 @@ void *leaf_node_value(void *node, uint32_t cell_num) {
 void initialize_leaf_node(void *node) {
   set_node_type(node, NODE_LEAF);
   *leaf_node_num_cells(node) = 0;
+}
+// create new ro0t
+void create_new_root(Table *table, uint32_t right_child_page_num) {
+  // handle split the root
+  // old root copied to new page, become left child
+  // address of right child passed in
+  // re-initialize root page to contain the new root node
+  // new root node points to two children
+
+  void *root = get_page(table->pager, table->root_page_num);
+  void *right_child = get_page(table->pager, right_child_page_num);
+  uint32_t left_child_page_num = get_unused_page_num(table->pager);
+  void *left_child = get_page(table->pager, left_child_page_num);
+
+  memcpy(left_child, root, PAGE_SIZE);
+  set_node_root(left_child, false);
+
+  // root node is a new internal node with one key and two children
+
+  initialize_internal_node(root);
+  set_node_root(root, true);
+  *internal_node_num_keys(root) = 1;
+  *internal_node_child(root, 0) = left_child_page_num;
+  uint32_t lef_child_max_key = get_node_max_key(left_child);
+  *internal_node_key(root, 0) = lef_child_max_key;
+  *internal_node_right_child(root) = right_child_page_num;
 }
 // get_page
 void *get_page(Pager *pager, uint32_t page_num) {
@@ -173,7 +203,8 @@ void *get_page(Pager *pager, uint32_t page_num) {
   }
   return pager->pages[page_num];
 }
-//
+// get unused page num
+uint32_t get_unused_page_num(Pager *pager) { return pager->num_pages; }
 // leaf node split and insert
 void leaf_node_split_and_insert(Cursor *cursor, uint32_t key, Row *value) {
   // create new node and move half cell over

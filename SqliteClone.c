@@ -133,7 +133,7 @@ uint32_t get_unused_page_num(Pager *pager);
 //----------- functions -------------
 // get_node_type
 NodeType get_node_type(void *node) {
-  uint32_t value = *((uint32_t *)(node + NODE_TYPE_OFFSET));
+  uint8_t value = *((uint8_t *)(node + NODE_TYPE_OFFSET));
   return (NodeType)value;
 }
 // set_node_type
@@ -552,6 +552,7 @@ void print_tree(Pager *pager, uint32_t page_num, uint32_t indentation_level) {
     break;
   }
 }
+
 // read meta command
 MetaCommandResult do_meta_command(InputBuffer *input_buffer, Table *table) {
   if (strcmp(input_buffer->buffer, ".exit") == 0) {
@@ -606,6 +607,33 @@ Cursor *leaf_node_find(Table *table, uint32_t page_num, uint32_t key) {
   cursor->cell_num = min_index;
   return cursor;
 }
+// internal node find
+Cursor *internal_node_find(Table *table, uint32_t page_num, uint32_t key) {
+  void *node = get_page(table->pager, page_num);
+  uint32_t num_keys = *internal_node_num_keys(node);
+
+  // binary search to find index of child to search
+  uint32_t min_index = 0;
+  uint32_t max_index = num_keys; // there's one more child than key
+
+  while (min_index != max_index) {
+    uint32_t index = (min_index + max_index) / 2;
+    uint32_t key_to_right = *internal_node_key(node, index);
+    if (key_to_right >= key) {
+      max_index = index;
+    } else {
+      min_index = index + 1;
+    }
+  }
+  uint32_t child_num = *internal_node_child(node, min_index);
+  void *child = get_page(table->pager, child_num);
+  switch (get_node_type(child)) {
+  case NODE_LEAF:
+    return leaf_node_find(table, child_num, key);
+  case NODE_INTERNAL:
+    return internal_node_find(table, child_num, key);
+  }
+}
 // table_fine: return a position of the given key, if the key is not present,
 // return the position where it should be inserted
 Cursor *table_fine(Table *table, uint32_t key) {
@@ -615,8 +643,7 @@ Cursor *table_fine(Table *table, uint32_t key) {
   if (get_node_type(root_node) == NODE_LEAF) {
     return leaf_node_find(table, root_page_num, key);
   } else {
-    printf("need to implement searching an internal node\n");
-    exit(EXIT_FAILURE);
+    return internal_node_find(table, root_page_num, key);
   }
 }
 // read statement

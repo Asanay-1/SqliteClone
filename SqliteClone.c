@@ -282,7 +282,7 @@ void leaf_node_split_and_insert(Cursor *cursor, uint32_t key, Row *value) {
   // and new (right) ndoes starting from the right, move each key to correct -
   //- position
 
-  for (uint32_t i = LEAF_NODE_MAX_CELLS; i >= 0; i--) {
+  for (int32_t i = LEAF_NODE_MAX_CELLS; i >= 0; i--) {
     void *destination_node;
     if (i >= LEAF_NODE_LEFT_SPLIT_COUNT) {
       destination_node = new_node;
@@ -290,14 +290,14 @@ void leaf_node_split_and_insert(Cursor *cursor, uint32_t key, Row *value) {
       destination_node = old_node;
     }
     uint32_t index_within_node = i % LEAF_NODE_LEFT_SPLIT_COUNT;
-    void *desination = leaf_node_cell(destination_node, index_within_node);
+    void *destination = leaf_node_cell(destination_node, index_within_node);
 
     if (i == cursor->cell_num) {
-      serialize_row(value, desination);
+      serialize_row(value, destination);
     } else if (i > cursor->cell_num) {
-      memcpy(desination, leaf_node_cell(old_node, i - 1), LEAF_NODE_CELL_SIZE);
+      memcpy(destination, leaf_node_cell(old_node, i - 1), LEAF_NODE_CELL_SIZE);
     } else {
-      memcpy(desination, leaf_node_cell(old_node, i), LEAF_NODE_CELL_SIZE);
+      memcpy(destination, leaf_node_cell(old_node, i), LEAF_NODE_CELL_SIZE);
     }
   }
   // update cell count on both leaf node
@@ -307,7 +307,7 @@ void leaf_node_split_and_insert(Cursor *cursor, uint32_t key, Row *value) {
   if (is_node_root(old_node)) {
     return create_new_root(cursor->table, new_page_num);
   } else {
-    printf("need to implement updating parent after split \n");
+    printf("Need to implement updating parent after split\n");
     exit(EXIT_FAILURE);
   }
 }

@@ -97,8 +97,12 @@ const uint8_t COMMON_NODE_HEADER_SIZE =
 // leaf node header layout
 const uint32_t LEAF_NODE_NUM_CELLS_SIZE = sizeof(uint32_t);
 const uint32_t LEAF_NODE_NUM_CELLS_OFFSET = COMMON_NODE_HEADER_SIZE;
-const uint32_t LEAF_NODE_HEADER_SIZE =
-    COMMON_NODE_HEADER_SIZE + LEAF_NODE_NUM_CELLS_SIZE;
+const uint32_t LEAF_NODE_NEXT_LEAF_SIZE = sizeof(uint32_t);
+const uint32_t LEAF_NODE_NEXT_LEAF_OFFSET =
+    LEAF_NODE_NUM_CELLS_OFFSET + LEAF_NODE_NUM_CELLS_SIZE;
+const uint32_t LEAF_NODE_HEADER_SIZE = COMMON_NODE_HEADER_SIZE +
+                                       LEAF_NODE_NUM_CELLS_SIZE +
+                                       LEAF_NODE_NEXT_LEAF_SIZE;
 // leaf node body layout
 const uint32_t LEAF_NODE_KEY_SIZE = sizeof(uint32_t);
 const uint32_t LEAF_NODE_KEY_OFFSET = 0;
@@ -662,7 +666,7 @@ ExecuteResult execute_insert(Statement *statement, Table *table) {
 
   Row *row_to_insert = &(statement->row_to_insert);
   uint32_t key_to_insert = row_to_insert->id;
-  Cursor *cursor = table_fine(table, key_to_insert);
+  Cursor *cursor = table_find(table, key_to_insert);
 
   if (cursor->cell_num < num_cells) {
     uint32_t key_at_index = *leaf_node_key(node, cursor->cell_num);

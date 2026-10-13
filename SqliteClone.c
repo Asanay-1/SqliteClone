@@ -135,6 +135,7 @@ void serialize_row(Row *source, void *dest);
 void *get_page(Pager *pager, uint32_t page_num);
 uint32_t get_unused_page_num(Pager *pager);
 Cursor *table_find(Table *table, uint32_t key);
+uint32_t *node_parent(void *);
 //----------- functions -------------
 // get_node_type
 NodeType get_node_type(void *node) {
@@ -242,6 +243,8 @@ void create_new_root(Table *table, uint32_t right_child_page_num) {
   uint32_t lef_child_max_key = get_node_max_key(left_child);
   *internal_node_key(root, 0) = lef_child_max_key;
   *internal_node_right_child(root) = right_child_page_num;
+  *node_parent(left_child) = table->root_page_num;
+  *node_parent(right_child) = table->root_page_num;
 }
 // get_page
 void *get_page(Pager *pager, uint32_t page_num) {
@@ -276,6 +279,13 @@ void *get_page(Pager *pager, uint32_t page_num) {
   }
   return pager->pages[page_num];
 }
+// node parent
+uint32_t *node_parent(void *node) { return node + PARENT_POINTER_OFFSET; }
+// update_internal_node_key
+void update_internal_node_key(void *node, uint32_t old_key, uint32_t new_key) {
+  uint32_t old_child_index = internal_node_find_child(node, old_key);
+  *internal_node_key(node, old_child_index) = new_key;
+}
 // get unused page num
 uint32_t get_unused_page_num(Pager *pager) { return pager->num_pages; }
 // leaf node split and insert
@@ -285,9 +295,11 @@ void leaf_node_split_and_insert(Cursor *cursor, uint32_t key, Row *value) {
   // update parent or create a new parent
 
   void *old_node = get_page(cursor->table->pager, cursor->page_num);
+  uint32_t old_max = get_node_max_key(old_node);
   uint32_t new_page_num = get_unused_page_num(cursor->table->pager);
   void *new_node = get_page(cursor->table->pager, new_page_num);
   initialize_leaf_node(new_node);
+  *node_parent(new_node) = *node_parent(old_node);
   *leaf_node_next_leaf(new_node) = *leaf_node_next_leaf(old_node);
   *leaf_node_next_leaf(old_node) = new_page_num;
 
@@ -307,7 +319,8 @@ void leaf_node_split_and_insert(Cursor *cursor, uint32_t key, Row *value) {
 
     if (i == (int32_t)cursor->cell_num) {
       *(leaf_node_key(destination_node, index_within_node)) = key;
-      serialize_row(value, leaf_node_value(destination_node, index_within_node));
+      serialize_row(value,
+                    leaf_node_value(destination_node, index_within_node));
     } else if (i > (int32_t)cursor->cell_num) {
       memcpy(destination, leaf_node_cell(old_node, i - 1), LEAF_NODE_CELL_SIZE);
     } else {
@@ -321,8 +334,13 @@ void leaf_node_split_and_insert(Cursor *cursor, uint32_t key, Row *value) {
   if (is_node_root(old_node)) {
     return create_new_root(cursor->table, new_page_num);
   } else {
-    printf("Need to implement updating parent after split\n");
-    exit(EXIT_FAILURE);
+    uint32_t parent_page_num = *node_parent(old_node);
+    uint32_t new_max = get_node_max_key(old_node);
+    void *parent = get_page(cursor->table->pager, parent_page_num);
+
+    update_internal_node_key(parent, old_max, new_max);
+    internal_node_insert(cursor->table, parent_page_num, new_page_num);
+    return;
   }
 }
 // cursor value

@@ -141,6 +141,8 @@ uint32_t *node_parent(void *);
 uint32_t internal_node_find_child(void *node, uint32_t key);
 void internal_node_insert(Table *table, uint32_t parent_page_num,
                           uint32_t child_page_num);
+void internal_node_split_and_insert(Table *table, uint32_t parent_page_num,
+                                    uint32_t child_page_num);
 //----------- functions -------------
 // get_node_type
 NodeType get_node_type(void *node) {
@@ -348,6 +350,8 @@ void leaf_node_split_and_insert(Cursor *cursor, uint32_t key, Row *value) {
     return;
   }
 }
+// internal node split and insert
+
 // cursor value
 void *cursor_value(Cursor *cursor) {
   uint32_t page_num = cursor->page_num;
@@ -621,30 +625,36 @@ Cursor *table_start(Table *table) {
 
   return cursor;
 }
-// internal_node_insert
+// internal node insert
 void internal_node_insert(Table *table, uint32_t parent_page_num,
                           uint32_t child_page_num) {
   // add a new child/key pair to parent thatcorresponds to child
 
   void *parent = get_page(table->pager, parent_page_num);
   void *child = get_page(table->pager, child_page_num);
-  uint32_t child_max_key = get_node_max_key(child);
+  uint32_t child_max_key = get_node_max_key(table->pager, child);
   uint32_t index = internal_node_find_child(parent, child_max_key);
   uint32_t original_num_keys = *internal_node_num_keys(parent);
-  *internal_node_num_keys(parent) = original_num_keys + 1;
 
   if (original_num_keys >= INTERNAL_NODE_MAX_CELLS) {
-    printf("need to implement splitting internal node\n");
-    exit(EXIT_FAILURE);
+    internal_node_split_and_insert(table, parent_page_num, child_page_num);
+    return;
   }
   uint32_t right_child_page_num = *internal_node_right_child(parent);
+  // an internal node with a right child of INVALID_PAGE_NUM is empty
+  if (right_child_page_num == INVALID_PAGE_NUM) {
+    *internal_node_right_child(parent) = child_page_num;
+    return;
+  }
   void *right_child = get_page(table->pager, right_child_page_num);
 
-  if (child_max_key > get_node_max_key(right_child)) {
+  *internal_node_num_keys(parent) = original_num_keys + 1;
+
+  if (child_max_key > get_node_max_key(table->pager, right_child)) {
     // replace the right child
     *internal_node_child(parent, original_num_keys) = right_child_page_num;
     *internal_node_key(parent, original_num_keys) =
-        get_node_max_key(right_child);
+        get_node_max_key(table->pager, right_child);
     *internal_node_right_child(parent) = child_page_num;
   } else {
     // make room for new cell

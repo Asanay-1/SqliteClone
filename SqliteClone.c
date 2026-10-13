@@ -136,6 +136,7 @@ void *get_page(Pager *pager, uint32_t page_num);
 uint32_t get_unused_page_num(Pager *pager);
 Cursor *table_find(Table *table, uint32_t key);
 uint32_t *node_parent(void *);
+uint32_t internal_node_find_child(void *node, uint32_t key);
 //----------- functions -------------
 // get_node_type
 NodeType get_node_type(void *node) {
@@ -645,11 +646,12 @@ Cursor *leaf_node_find(Table *table, uint32_t page_num, uint32_t key) {
   return cursor;
 }
 // internal node find
-Cursor *internal_node_find(Table *table, uint32_t page_num, uint32_t key) {
-  void *node = get_page(table->pager, page_num);
+uint32_t internal_node_find_child(void *node, uint32_t key) {
+  // return the index of the child which should contain the given key
+
   uint32_t num_keys = *internal_node_num_keys(node);
 
-  // binary search to find index of child to search
+  // binary search
   uint32_t min_index = 0;
   uint32_t max_index = num_keys; // there's one more child than key
 
@@ -662,7 +664,14 @@ Cursor *internal_node_find(Table *table, uint32_t page_num, uint32_t key) {
       min_index = index + 1;
     }
   }
-  uint32_t child_num = *internal_node_child(node, min_index);
+  return min_index;
+}
+Cursor *internal_node_find(Table *table, uint32_t page_num, uint32_t key) {
+  void *node = get_page(table->pager, page_num);
+
+  uint32_t child_index = internal_node_find_child(node, key);
+  uint32_t child_num = *internal_node_child(node, child_index);
+
   void *child = get_page(table->pager, child_num);
   switch (get_node_type(child)) {
   case NODE_LEAF:

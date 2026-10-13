@@ -131,6 +131,7 @@ const uint32_t INTERNAL_NODE_KEY_SIZE = sizeof(uint32_t);
 const uint32_t INTERNAL_NODE_CHILD_SIZE = sizeof(uint32_t);
 const uint32_t INTERNAL_NODE_CELL_SIZE =
     INTERNAL_NODE_CHILD_SIZE + INTERNAL_NODE_KEY_SIZE;
+const uint32_t INTERNAL_NODE_MAX_CELLS = 3;
 // function prototype
 void serialize_row(Row *source, void *dest);
 void *get_page(Pager *pager, uint32_t page_num);
@@ -189,7 +190,7 @@ uint32_t *internal_node_child(void *node, uint32_t child_num) {
   }
 }
 uint32_t *internal_node_key(void *node, uint32_t key_num) {
-  return internal_node_cell(node, key_num) + INTERNAL_NODE_CHILD_SIZE;
+  return (void *)internal_node_cell(node, key_num) + INTERNAL_NODE_CHILD_SIZE;
 }
 // get node max key
 uint32_t get_node_max_key(void *node) {

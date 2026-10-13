@@ -143,8 +143,8 @@ NodeType get_node_type(void *node) {
 }
 // set_node_type
 void set_node_type(void *node, NodeType type) {
-  uint32_t value = type;
-  *((uint32_t *)(node + NODE_TYPE_OFFSET)) = value;
+  uint8_t value = type;
+  *((uint8_t *)(node + NODE_TYPE_OFFSET)) = value;
 }
 // leaf node field
 uint32_t *leaf_node_num_cells(void *node) {
@@ -192,8 +192,9 @@ uint32_t get_node_max_key(void *node) {
   case NODE_INTERNAL:
     return *internal_node_key(node, *internal_node_num_keys(node) - 1);
   case NODE_LEAF:
-    return *leaf_node_key(node, *leaf_node_num_cells(node));
+    return *leaf_node_key(node, *leaf_node_num_cells(node) - 1);
   }
+  return 0;
 }
 // getter and setter
 bool is_node_root(void *node) {
@@ -225,6 +226,7 @@ void create_new_root(Table *table, uint32_t right_child_page_num) {
 
   void *root = get_page(table->pager, table->root_page_num);
   void *right_child = get_page(table->pager, right_child_page_num);
+  (void)right_child;
   uint32_t left_child_page_num = get_unused_page_num(table->pager);
   void *left_child = get_page(table->pager, left_child_page_num);
 
@@ -295,7 +297,7 @@ void leaf_node_split_and_insert(Cursor *cursor, uint32_t key, Row *value) {
 
   for (int32_t i = LEAF_NODE_MAX_CELLS; i >= 0; i--) {
     void *destination_node;
-    if (i >= LEAF_NODE_LEFT_SPLIT_COUNT) {
+    if (i >= (int32_t)LEAF_NODE_LEFT_SPLIT_COUNT) {
       destination_node = new_node;
     } else {
       destination_node = old_node;
@@ -303,9 +305,10 @@ void leaf_node_split_and_insert(Cursor *cursor, uint32_t key, Row *value) {
     uint32_t index_within_node = i % LEAF_NODE_LEFT_SPLIT_COUNT;
     void *destination = leaf_node_cell(destination_node, index_within_node);
 
-    if (i == cursor->cell_num) {
-      serialize_row(value, destination);
-    } else if (i > cursor->cell_num) {
+    if (i == (int32_t)cursor->cell_num) {
+      *(leaf_node_key(destination_node, index_within_node)) = key;
+      serialize_row(value, leaf_node_value(destination_node, index_within_node));
+    } else if (i > (int32_t)cursor->cell_num) {
       memcpy(destination, leaf_node_cell(old_node, i - 1), LEAF_NODE_CELL_SIZE);
     } else {
       memcpy(destination, leaf_node_cell(old_node, i), LEAF_NODE_CELL_SIZE);
@@ -385,7 +388,7 @@ void pager_flush(Pager *pager, uint32_t page_num) {
   off_t offset = lseek(pager->file_desriptor, page_num * PAGE_SIZE, SEEK_SET);
 
   if (offset == -1) {
-    printf("error seeking\n", errno);
+    printf("error seeking %d\n", errno);
     exit(EXIT_FAILURE);
   }
   ssize_t bytes_written =
@@ -463,6 +466,8 @@ PrepareResult prepare_insert(InputBuffer *input_buffer, Statement *statement) {
   if (strlen(email) > COLUMN_EMAIL_SIZE)
     return PREPARE_STRING_TOO_LONG;
 
+  (void)keyword;
+  memset(&(statement->row_to_insert), 0, sizeof(Row));
   statement->row_to_insert.id = id;
   strcpy(statement->row_to_insert.username, username);
   strcpy(statement->row_to_insert.email, email);
@@ -647,6 +652,7 @@ Cursor *internal_node_find(Table *table, uint32_t page_num, uint32_t key) {
   case NODE_INTERNAL:
     return internal_node_find(table, child_num, key);
   }
+  return NULL;
 }
 // table_find: return a position of the given key, if the key is not present,
 // return the position where it should be inserted
@@ -674,16 +680,17 @@ PrepareResult prepare_statement(InputBuffer *input_buffer,
 }
 // execute statement-----
 ExecuteResult execute_insert(Statement *statement, Table *table) {
-  void *node = get_page(table->pager, table->root_page_num);
-  uint32_t num_cells = (*leaf_node_num_cells(node));
-
   Row *row_to_insert = &(statement->row_to_insert);
   uint32_t key_to_insert = row_to_insert->id;
   Cursor *cursor = table_find(table, key_to_insert);
 
+  void *node = get_page(table->pager, cursor->page_num);
+  uint32_t num_cells = (*leaf_node_num_cells(node));
+
   if (cursor->cell_num < num_cells) {
     uint32_t key_at_index = *leaf_node_key(node, cursor->cell_num);
     if (key_at_index == key_to_insert) {
+      free(cursor);
       return EXECUTE_DUPLICATE_KEY;
     }
   }
@@ -694,9 +701,11 @@ ExecuteResult execute_insert(Statement *statement, Table *table) {
 }
 
 ExecuteResult execute_select(Statement *statement, Table *table) {
+  (void)statement;
   Cursor *cursor = table_start(table);
   Row row;
   while (!(cursor->end_of_table)) {
+    memset(&row, 0, sizeof(Row));
     deserialize_row(cursor_value(cursor), &row);
     print_row(&row);
     cursor_advance(cursor);
@@ -711,6 +720,7 @@ ExecuteResult execute_statement(Statement *statement, Table *table) {
   case (STATEMENT_SELECT):
     return (execute_select(statement, table));
   }
+  return EXECUTE_SUCCESS;
 }
 //---------------------
 int main(int argc, char *argv[]) {
@@ -757,6 +767,7 @@ int main(int argc, char *argv[]) {
       continue;
     case (PREPARE_SYNTAX_ERROR):
       printf("syntax error. could not parse statement\n");
+      continue;
     case (PREPARE_UNRECOGNIZED_STATEMENT):
       printf("Unrecognized keyword at start of '%s'.\n", input_buffer->buffer);
       continue;

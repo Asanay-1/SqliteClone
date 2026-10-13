@@ -8,6 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#define INVALID_PAGE_NUM UINT32_MAX
 #define COLUMN_USERNAME_SIZE 32
 #define COLUMN_EMAIL_SIZE 255
 typedef struct {
@@ -223,6 +224,7 @@ void initialize_internal_node(void *node) {
   set_node_type(node, NODE_INTERNAL);
   set_node_root(node, false);
   *internal_node_num_keys(node) = 0;
+  *internal_node_right_child(node) = INVALID_PAGE_NUM;
 }
 // create new root
 void create_new_root(Table *table, uint32_t right_child_page_num) {
